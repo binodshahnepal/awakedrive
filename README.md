@@ -27,6 +27,10 @@ AwakeDrive.slnx                  .NET solution (all 5 C# projects)
 /backend/Dms.Api                   ASP.NET Core 8 Web API + SignalR Hub
   Controllers/                       AuthenticationController, DevicesController, TelemetryController
   Hubs/DrowsinessHub.cs               WebSocket endpoint: /hubs/drowsiness
+  Data/DmsDbContext.cs                EF Core model: Fleet, User, Device, Incident (Npgsql)
+  Data/Entities/                      Entity classes (kept independent of the wire-contract DTOs)
+  Migrations/                         EF Core migrations (InitialCreate is checked in)
+  Services/JwtTokenService.cs         Issues JWTs consistent with the bearer-auth validation setup
 /backend/Dms.Shared.Contracts      Shared DTOs/enums used by backend + C# clients
 /mobile/android                   Android driver app (Kotlin) — see README for setup
 /mobile/ios                       iOS driver app (Swift) — see README for setup
@@ -39,8 +43,18 @@ AwakeDrive.slnx                  .NET solution (all 5 C# projects)
 
 ```bash
 dotnet build AwakeDrive.slnx
+
+# Apply migrations to a local Postgres instance (see ConnectionStrings:Default
+# in backend/Dms.Api/appsettings.json — override via User Secrets for real use)
+dotnet ef database update --project backend/Dms.Api
+
 dotnet run --project backend/Dms.Api
 ```
+
+Auth, device registration, and incident ingestion are backed by a real
+Postgres schema (`Fleet`, `User`, `Device`, `Incident` — see
+`backend/Dms.Api/Data/DmsDbContext.cs`). There's no seed data yet, so create a
+user row (with a BCrypt password hash) before calling `/api/v1/auth/login`.
 
 ## Roadmap
 

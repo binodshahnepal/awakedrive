@@ -1,5 +1,9 @@
+using Dms.Api.Configuration;
+using Dms.Api.Data;
 using Dms.Api.Hubs;
+using Dms.Api.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 
@@ -13,9 +17,19 @@ builder.Services.AddSignalR();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// TODO: replace the placeholder key with a value from configuration/secret store
-// (e.g. builder.Configuration["Jwt:SigningKey"], User Secrets in dev, Key Vault in prod).
-var jwtSigningKey = builder.Configuration["Jwt:SigningKey"] ?? "dev-placeholder-signing-key-replace-me";
+// --- JWT options: bound once, used by both bearer validation below and
+// JwtTokenService (Services/JwtTokenService.cs) so issuance and validation
+// can never drift apart. "Jwt:SigningKey" is a dev placeholder in
+// appsettings.json — override it via User Secrets locally and via Key
+// Vault/environment variables in staging/production; never commit a real key.
+builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
+var jwtOptions = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>()
+    ?? throw new InvalidOperationException("Missing required \"Jwt\" configuration section.");
+
+builder.Services.AddDbContext<DmsDbContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("Default")));
+
+builder.Services.AddSingleton<IJwtTokenService, JwtTokenService>();
 
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -23,10 +37,12 @@ builder.Services
     {
         options.TokenValidationParameters = new TokenValidationParameters
         {
-            ValidateIssuer = false, // TODO: set true + ValidIssuer once issuer is finalized
-            ValidateAudience = false, // TODO: set true + ValidAudience once audience is finalized
+            ValidateIssuer = true,
+            ValidIssuer = jwtOptions.Issuer,
+            ValidateAudience = true,
+            ValidAudience = jwtOptions.Audience,
             ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSigningKey))
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.SigningKey))
         };
 
         // Allow SignalR clients to authenticate via access_token query string,
@@ -47,9 +63,6 @@ builder.Services
     });
 
 builder.Services.AddAuthorization();
-
-// TODO: register DbContext once the EF Core model is defined, e.g.
-// builder.Services.AddDbContext<DmsDbContext>(o => o.UseNpgsql(builder.Configuration.GetConnectionString("Default")));
 
 var app = builder.Build();
 

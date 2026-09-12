@@ -1,5 +1,8 @@
+using Dms.Api.Data;
+using Dms.Api.Services;
 using Dms.Shared.Contracts.Auth;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace Dms.Api.Controllers;
 
@@ -8,10 +11,14 @@ namespace Dms.Api.Controllers;
 public class AuthenticationController : ControllerBase
 {
     private readonly ILogger<AuthenticationController> _logger;
+    private readonly DmsDbContext _db;
+    private readonly IJwtTokenService _jwtTokenService;
 
-    public AuthenticationController(ILogger<AuthenticationController> logger)
+    public AuthenticationController(ILogger<AuthenticationController> logger, DmsDbContext db, IJwtTokenService jwtTokenService)
     {
         _logger = logger;
+        _db = db;
+        _jwtTokenService = jwtTokenService;
     }
 
     /// <summary>
@@ -20,11 +27,20 @@ public class AuthenticationController : ControllerBase
     [HttpPost("login")]
     [ProducesResponseType(typeof(LoginResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    public ActionResult<LoginResponse> Login([FromBody] LoginRequest request)
+    public async Task<ActionResult<LoginResponse>> Login([FromBody] LoginRequest request)
     {
-        // TODO: validate credentials against the user store and issue a real JWT
-        // (Microsoft.IdentityModel.Tokens / System.IdentityModel.Tokens.Jwt).
-        _logger.LogInformation("Login attempt for {Email}", request.Email);
-        throw new NotImplementedException("Wire up credential validation and JWT issuance.");
+        var normalizedEmail = request.Email.Trim().ToLowerInvariant();
+        var user = await _db.Users.SingleOrDefaultAsync(u => u.Email == normalizedEmail);
+
+        if (user is null || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
+        {
+            // Deliberately the same message/shape for "no such user" and "wrong
+            // password" so the endpoint doesn't leak which emails are registered.
+            _logger.LogInformation("Failed login attempt for {Email}", normalizedEmail);
+            return Unauthorized();
+        }
+
+        var response = _jwtTokenService.IssueToken(user);
+        return Ok(response);
     }
 }

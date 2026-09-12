@@ -1,9 +1,12 @@
+using Dms.Api.Data;
+using Dms.Api.Data.Entities;
 using Dms.Api.Hubs;
 using Dms.Shared.Contracts.Alerts;
 using Dms.Shared.Contracts.Telemetry;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
 
 namespace Dms.Api.Controllers;
 
@@ -13,11 +16,13 @@ namespace Dms.Api.Controllers;
 public class TelemetryController : ControllerBase
 {
     private readonly ILogger<TelemetryController> _logger;
+    private readonly DmsDbContext _db;
     private readonly IHubContext<DrowsinessHub> _hub;
 
-    public TelemetryController(ILogger<TelemetryController> logger, IHubContext<DrowsinessHub> hub)
+    public TelemetryController(ILogger<TelemetryController> logger, DmsDbContext db, IHubContext<DrowsinessHub> hub)
     {
         _logger = logger;
+        _db = db;
         _hub = hub;
     }
 
@@ -28,25 +33,60 @@ public class TelemetryController : ControllerBase
     /// </summary>
     [HttpPost("incidents")]
     [ProducesResponseType(typeof(IncidentIngestResponse), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<IncidentIngestResponse>> IngestIncident([FromBody] IncidentReport report)
     {
-        // TODO: persist via EF Core, resolve driver display name / fleet group.
-        _logger.LogInformation("Incident {Type} from device {DeviceId} at {Timestamp}",
-            report.Type, report.DeviceId, report.TimestampUtc);
+        if (!Guid.TryParse(report.DeviceId, out var deviceId))
+        {
+            return BadRequest($"'{report.DeviceId}' is not a valid device id.");
+        }
+        if (!Guid.TryParse(report.DriverId, out var driverId))
+        {
+            return BadRequest($"'{report.DriverId}' is not a valid driver id.");
+        }
 
-        var incidentId = Guid.NewGuid().ToString();
+        var driver = await _db.Users.SingleOrDefaultAsync(u => u.Id == driverId);
+        if (driver is null)
+        {
+            return BadRequest($"No driver found with id '{report.DriverId}'.");
+        }
+
+        var incident = new Incident
+        {
+            Id = Guid.NewGuid(),
+            DeviceId = deviceId,
+            DriverId = driverId,
+            Type = report.Type,
+            TimestampUtc = report.TimestampUtc,
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+            Latitude = report.Location?.Latitude,
+            Longitude = report.Location?.Longitude,
+            Ear = report.Ear,
+            Mar = report.Mar,
+            Perclos = report.Perclos,
+            Pitch = report.HeadPose?.Pitch,
+            Yaw = report.HeadPose?.Yaw,
+            Roll = report.HeadPose?.Roll
+        };
+
+        _db.Incidents.Add(incident);
+        await _db.SaveChangesAsync();
+
+        _logger.LogInformation("Persisted incident {IncidentId} ({Type}) from device {DeviceId}",
+            incident.Id, incident.Type, deviceId);
 
         var alert = new DrowsinessAlert(
-            incidentId,
+            incident.Id.ToString(),
             report.DeviceId,
             report.DriverId,
-            DriverName: "TODO: resolve from driver record",
+            driver.DisplayName,
             report.Type,
             report.TimestampUtc,
             report.Location);
 
         await _hub.Clients.All.SendAsync("DrowsinessAlert", alert);
 
-        return StatusCode(StatusCodes.Status201Created, new IncidentIngestResponse(incidentId, AlertBroadcast: true));
+        return StatusCode(StatusCodes.Status201Created,
+            new IncidentIngestResponse(incident.Id.ToString(), AlertBroadcast: true));
     }
 }
