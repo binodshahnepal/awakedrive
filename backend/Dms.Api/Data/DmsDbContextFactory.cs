@@ -20,7 +20,7 @@ public class DmsDbContextFactory : IDesignTimeDbContextFactory<DmsDbContext>
             .Build();
 
         var connectionString = configuration.GetConnectionString("Default")
-            ?? "Host=localhost;Database=awakedrive;Username=postgres;Password=postgres";
+            ?? "Host=localhost;Port=5433;Database=awakedrive;Username=postgres;Password=postgres";
 
         var optionsBuilder = new DbContextOptionsBuilder<DmsDbContext>();
         optionsBuilder.UseNpgsql(connectionString);
