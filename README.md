@@ -53,8 +53,17 @@ dotnet run --project backend/Dms.Api
 
 Auth, device registration, and incident ingestion are backed by a real
 Postgres schema (`Fleet`, `User`, `Device`, `Incident` — see
-`backend/Dms.Api/Data/DmsDbContext.cs`). There's no seed data yet, so create a
-user row (with a BCrypt password hash) before calling `/api/v1/auth/login`.
+`backend/Dms.Api/Data/DmsDbContext.cs`). A migration seeds one local-dev Admin:
+
+```
+email:    admin@awakedrive.local
+password: ChangeMe123!
+```
+
+Log in as that admin (`POST /api/v1/auth/login`) to get a token, then use it
+to onboard everyone else via `POST /api/v1/auth/register` (Admin-only —
+there's no public self-signup). Change or remove the seeded admin before
+anything beyond local dev.
 
 ## Roadmap
 

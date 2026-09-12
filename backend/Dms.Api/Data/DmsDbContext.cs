@@ -1,4 +1,5 @@
 using Dms.Api.Data.Entities;
+using Dms.Shared.Contracts.Auth;
 using Microsoft.EntityFrameworkCore;
 
 namespace Dms.Api.Data;
@@ -79,6 +80,33 @@ public class DmsDbContext(DbContextOptions<DmsDbContext> options) : DbContext(op
                 .WithMany(u => u.Incidents)
                 .HasForeignKey(i => i.DriverId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        SeedDevData(modelBuilder);
+    }
+
+    /// <summary>
+    /// Local-dev-only seed: one Admin user so a fresh database is never a
+    /// dead end (you need at least one Admin to call POST /api/v1/auth/register
+    /// and create everyone else). Ids/timestamps are fixed constants — not
+    /// Guid.NewGuid()/DateTimeOffset.UtcNow — because EF Core snapshots
+    /// HasData at migration-build time and needs it to be reproducible.
+    ///
+    /// Credentials: admin@awakedrive.local / ChangeMe123!
+    /// Change this password immediately outside of local dev.
+    /// </summary>
+    private static void SeedDevData(ModelBuilder modelBuilder)
+    {
+        var seededAt = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
+
+        modelBuilder.Entity<User>().HasData(new User
+        {
+            Id = Guid.Parse("00000000-0000-0000-0000-000000000001"),
+            Email = "admin@awakedrive.local",
+            PasswordHash = "$2a$11$EogFrFIU6AmfGvcJtL1BJOdMKW/IrcP8JF35WDn6i7VLc.1Y1roGO", // ChangeMe123!
+            DisplayName = "Default Admin",
+            Role = UserRole.Admin,
+            CreatedAtUtc = seededAt
         });
     }
 }

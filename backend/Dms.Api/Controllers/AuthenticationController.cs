@@ -1,6 +1,8 @@
 using Dms.Api.Data;
+using Dms.Api.Data.Entities;
 using Dms.Api.Services;
 using Dms.Shared.Contracts.Auth;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -42,5 +44,57 @@ public class AuthenticationController : ControllerBase
 
         var response = _jwtTokenService.IssueToken(user);
         return Ok(response);
+    }
+
+    /// <summary>
+    /// Onboards a new driver, fleet manager, or admin. Admin-only: this is how
+    /// accounts get created — there is no public self-signup.
+    /// </summary>
+    [HttpPost("register")]
+    [Authorize(Roles = nameof(UserRole.Admin))]
+    [ProducesResponseType(typeof(RegisterUserResponse), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<RegisterUserResponse>> Register([FromBody] RegisterUserRequest request)
+    {
+        var normalizedEmail = request.Email.Trim().ToLowerInvariant();
+
+        if (await _db.Users.AnyAsync(u => u.Email == normalizedEmail))
+        {
+            return Conflict($"A user with email '{normalizedEmail}' already exists.");
+        }
+
+        Guid? fleetId = null;
+        if (!string.IsNullOrWhiteSpace(request.FleetId))
+        {
+            if (!Guid.TryParse(request.FleetId, out var parsedFleetId))
+            {
+                return BadRequest($"'{request.FleetId}' is not a valid fleet id.");
+            }
+            if (!await _db.Fleets.AnyAsync(f => f.Id == parsedFleetId))
+            {
+                return BadRequest($"No fleet found with id '{request.FleetId}'.");
+            }
+            fleetId = parsedFleetId;
+        }
+
+        var user = new User
+        {
+            Id = Guid.NewGuid(),
+            Email = normalizedEmail,
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
+            DisplayName = request.DisplayName,
+            Role = request.Role,
+            FleetId = fleetId,
+            CreatedAtUtc = DateTimeOffset.UtcNow
+        };
+
+        _db.Users.Add(user);
+        await _db.SaveChangesAsync();
+
+        _logger.LogInformation("Registered new {Role} user {UserId} ({Email})", user.Role, user.Id, user.Email);
+
+        return StatusCode(StatusCodes.Status201Created,
+            new RegisterUserResponse(user.Id.ToString(), user.Email, user.DisplayName, user.Role));
     }
 }
