@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/backend/">
+    <Project Path="backend/Dms.Api/Dms.Api.csproj" />
+    <Project Path="backend/Dms.Shared.Contracts/Dms.Shared.Contracts.csproj" />
+  </Folder>
+  <Folder Name="/desktop/">
+    <Project Path="desktop/Dms.Desktop.DriverHud/Dms.Desktop.DriverHud.csproj" />
+    <Project Path="desktop/Dms.Desktop.FleetConsole/Dms.Desktop.FleetConsole.csproj" />
+  </Folder>
+  <Folder Name="/web/">
+    <Project Path="web/Dms.Web.FleetPortal/Dms.Web.FleetPortal.csproj" />
+  </Folder>
+</Solution>

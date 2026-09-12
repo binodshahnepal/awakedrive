@@ -15,18 +15,31 @@ End-to-end commercial DMS product suite: an edge computer-vision perception engi
 
 Shared C# DTOs/contracts live in `Dms.Shared.Contracts`, referenced by the backend and all three C# clients.
 
-## Repository layout (planned)
+## Repository layout
 
 ```
-/docs                          Specifications, architecture notes
-/perception-engine              Python CV prototype + ONNX export pipeline
-/backend/Dms.Api                 ASP.NET Core 8 Web API + SignalR Hub
-/backend/Dms.Shared.Contracts    Shared DTOs/enums used by backend + C# clients
-/mobile/android                 Android driver app (Kotlin)
-/mobile/ios                     iOS driver app (Swift)
-/desktop/Dms.Desktop.DriverHud   WPF in-vehicle driver HUD
-/desktop/Dms.Desktop.FleetConsole WPF fleet manager console
-/web/Dms.Web.FleetPortal         Blazor Server fleet manager portal
+AwakeDrive.slnx                  .NET solution (all 5 C# projects)
+/docs                            Specifications, architecture notes
+/perception-engine                Python CV prototype + ONNX export pipeline
+  src/dms_perception/metrics.py    EAR / MAR / PERCLOS / head-pose math
+  src/dms_perception/pipeline.py   Camera capture + MediaPipe + incident loop
+  tests/                           pytest unit tests
+/backend/Dms.Api                   ASP.NET Core 8 Web API + SignalR Hub
+  Controllers/                       AuthenticationController, DevicesController, TelemetryController
+  Hubs/DrowsinessHub.cs               WebSocket endpoint: /hubs/drowsiness
+/backend/Dms.Shared.Contracts      Shared DTOs/enums used by backend + C# clients
+/mobile/android                   Android driver app (Kotlin) — see README for setup
+/mobile/ios                       iOS driver app (Swift) — see README for setup
+/desktop/Dms.Desktop.DriverHud     WPF in-vehicle driver HUD
+/desktop/Dms.Desktop.FleetConsole  WPF fleet manager console
+/web/Dms.Web.FleetPortal           Blazor Server fleet manager portal
+```
+
+## Getting started (C# projects)
+
+```bash
+dotnet build AwakeDrive.slnx
+dotnet run --project backend/Dms.Api
 ```
 
 ## Roadmap
