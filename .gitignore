@@ -1,0 +1,53 @@
+# --- Python (Perception Engine) ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+*.onnx
+!models/**/*.onnx
+.ipynb_checkpoints/
+.pytest_cache/
+
+# --- .NET (Backend API, WPF Desktop, Blazor Web) ---
+bin/
+obj/
+*.user
+*.suo
+.vs/
+publish/
+*.pubxml
+*.dll
+*.pdb
+
+# --- Android ---
+*.apk
+*.aab
+.gradle/
+/local.properties
+*.iml
+.idea/
+captures/
+
+# --- iOS ---
+*.xcuserstate
+xcuserdata/
+DerivedData/
+Pods/
+*.xcworkspace/xcuserdata/
+
+# --- Secrets / Config ---
+appsettings.*.json
+!appsettings.json
+*.env
+.env
+*.pfx
+*.p12
+google-services.json
+GoogleService-Info.plist
+
+# --- OS / Editor ---
+.DS_Store
+Thumbs.db
+*.log
