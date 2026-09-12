@@ -8,7 +8,7 @@ namespace Dms.Api.Data.Entities;
 public class DeviceThresholds
 {
     public double EarThreshold { get; set; } = 0.20;
-    public double EarDurationSeconds { get; set; } = 1.5;
+    public double EarDurationSeconds { get; set; } = 0.6;
     public double PerclosThreshold { get; set; } = 0.15;
     public double MarThreshold { get; set; } = 0.60;
     public double MarDurationSeconds { get; set; } = 2.5;

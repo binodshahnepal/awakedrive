@@ -18,6 +18,7 @@ public partial class MainViewModel : ObservableObject
     private readonly IFaceLandmarkEngine _faceEngine;
     private readonly DeviceIdentityService _deviceIdentity;
     private readonly IncidentQueueService _incidentQueue;
+    private readonly AudioAlertService _audioAlert;
 
     private DeviceConfig _thresholds = new();
     private string? _deviceId;
@@ -28,7 +29,8 @@ public partial class MainViewModel : ObservableObject
         CameraService camera,
         IFaceLandmarkEngine faceEngine,
         DeviceIdentityService deviceIdentity,
-        IncidentQueueService incidentQueue)
+        IncidentQueueService incidentQueue,
+        AudioAlertService audioAlert)
     {
         _api = api;
         _authSession = authSession;
@@ -36,6 +38,7 @@ public partial class MainViewModel : ObservableObject
         _faceEngine = faceEngine;
         _deviceIdentity = deviceIdentity;
         _incidentQueue = incidentQueue;
+        _audioAlert = audioAlert;
 
         _camera.FrameCaptured += OnFrameCaptured;
         _camera.RawFrameCaptured += OnRawFrameCaptured;
@@ -88,12 +91,17 @@ public partial class MainViewModel : ObservableObject
 
             _perclosTracker = new PerclosTracker(60.0, _thresholds.EarThreshold);
             _camera.Start();
+            CameraStatus = "Camera active";
             _incidentQueue.StartBackgroundSync();
             PendingQueueCount = await _incidentQueue.GetPendingCountAsync();
         }
         catch (DmsApiException ex)
         {
             ErrorMessage = ex.Message.Contains("401") ? "Invalid email or password." : ex.Message;
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Cannot reach API server (http://localhost:5287): {ex.Message}";
         }
         finally
         {
@@ -116,7 +124,9 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void SignOut()
     {
+        _audioAlert.Stop();
         _camera.Stop();
+        CameraStatus = "Camera not started.";
         _authSession.Clear();
         IsAuthenticated = false;
         PreviewFrame = null;
@@ -152,21 +162,35 @@ public partial class MainViewModel : ObservableObject
 
         IsAlerting = true;
         AlertMessage = $"{report.Type} detected at {report.TimestampUtc:T}";
-        try
-        {
-            SystemSounds.Exclamation.Play(); // stand-in for the high-decibel siren the spec calls for
-        }
-        catch
-        {
-            // no audio device — non-fatal, the visual alert still shows
-        }
+        _audioAlert.PlayAlert(report.Type);
     }
+
+    private DateTime _lastMicroSleepAt = DateTime.MinValue;
+    private DateTime _lastPerclosAt = DateTime.MinValue;
+    private DateTime _lastYawningAt = DateTime.MinValue;
+    private DateTime _lastDistractionAt = DateTime.MinValue;
+    private bool _stage1CautionPlayed;
 
     [RelayCommand]
     private void DismissAlert()
     {
+        _audioAlert.Stop();
         IsAlerting = false;
         AlertMessage = null;
+
+        // Reset detection states so acting sleepy again immediately re-triggers the siren alert
+        _eyesClosedSince = DateTime.MinValue;
+        _stage1CautionPlayed = false;
+        _mouthOpenSince = DateTime.MinValue;
+        _lastMicroSleepAt = DateTime.MinValue;
+        _lastYawningAt = DateTime.MinValue;
+        _lastDistractionAt = DateTime.MinValue;
+        _lastPerclosAt = DateTime.UtcNow;
+
+        if (_thresholds is not null)
+        {
+            _perclosTracker = new PerclosTracker(60.0, _thresholds.EarThreshold);
+        }
     }
 
     private void OnFrameCaptured(BitmapSource frame)
@@ -178,7 +202,7 @@ public partial class MainViewModel : ObservableObject
     {
         if (!_faceEngine.TryPredict(frame, out var metrics) || metrics is null)
         {
-            return; // stays inert until OnnxFaceLandmarkEngine.TryPredict is implemented — see its class comment
+            return;
         }
 
         lock (_perclosLock)
@@ -204,32 +228,55 @@ public partial class MainViewModel : ObservableObject
             return;
         }
 
+        // MicroSleep detection with Two-Stage Progressive Alarm Escalation
+        // Normal Blinks (100ms - 400ms): Filtered out cleanly
+        // Stage 1 (> 0.4s): Fast Advisory Caution Chime
+        // Stage 2 (> 0.8s): Full Continuous Emergency Siren Alarm
         if (metrics.Ear < _thresholds.EarThreshold)
         {
             if (_eyesClosedSince == DateTime.MinValue)
             {
                 _eyesClosedSince = now;
+                _stage1CautionPlayed = false;
             }
-            else if ((now - _eyesClosedSince).TotalSeconds >= _thresholds.EarDurationSeconds)
+
+            double duration = (now - _eyesClosedSince).TotalSeconds;
+
+            if (duration >= 0.4 && !_stage1CautionPlayed && !IsAlerting)
             {
+                _stage1CautionPlayed = true;
+                _audioAlert.PlayCautionChime();
+            }
+
+            if (duration >= 0.8 && (now - _lastMicroSleepAt).TotalSeconds >= 1.5)
+            {
+                _lastMicroSleepAt = now;
+                _eyesClosedSince = DateTime.MinValue;
+                _stage1CautionPlayed = false;
                 _ = TriggerIncidentAsync(new IncidentReport(
                     _deviceId, _authSession.UserId!, IncidentType.MicroSleep, DateTimeOffset.UtcNow,
                     null, metrics.Ear, metrics.Mar, perclos, new HeadPose(metrics.PitchDegrees, metrics.YawDegrees, metrics.RollDegrees)));
-                _eyesClosedSince = DateTime.MinValue;
             }
         }
         else
         {
             _eyesClosedSince = DateTime.MinValue;
+            _stage1CautionPlayed = false;
         }
 
+        // PERCLOS detection (sliding window percentage)
         if (perclos >= _thresholds.PerclosThreshold)
         {
-            _ = TriggerIncidentAsync(new IncidentReport(
-                _deviceId, _authSession.UserId!, IncidentType.Perclos, DateTimeOffset.UtcNow,
-                null, metrics.Ear, metrics.Mar, perclos, null));
+            if ((now - _lastPerclosAt).TotalSeconds >= 10.0 && !IsAlerting)
+            {
+                _lastPerclosAt = now;
+                _ = TriggerIncidentAsync(new IncidentReport(
+                    _deviceId, _authSession.UserId!, IncidentType.Perclos, DateTimeOffset.UtcNow,
+                    null, metrics.Ear, metrics.Mar, perclos, null));
+            }
         }
 
+        // Yawning detection (mouth open > MAR threshold for duration)
         if (metrics.Mar > _thresholds.MarThreshold)
         {
             if (_mouthOpenSince == DateTime.MinValue)
@@ -238,9 +285,13 @@ public partial class MainViewModel : ObservableObject
             }
             else if ((now - _mouthOpenSince).TotalSeconds >= _thresholds.MarDurationSeconds)
             {
-                _ = TriggerIncidentAsync(new IncidentReport(
-                    _deviceId, _authSession.UserId!, IncidentType.Yawning, DateTimeOffset.UtcNow,
-                    null, metrics.Ear, metrics.Mar, perclos, null));
+                if ((now - _lastYawningAt).TotalSeconds >= 4.0)
+                {
+                    _lastYawningAt = now;
+                    _ = TriggerIncidentAsync(new IncidentReport(
+                        _deviceId, _authSession.UserId!, IncidentType.Yawning, DateTimeOffset.UtcNow,
+                        null, metrics.Ear, metrics.Mar, perclos, null));
+                }
                 _mouthOpenSince = DateTime.MinValue;
             }
         }
@@ -249,11 +300,16 @@ public partial class MainViewModel : ObservableObject
             _mouthOpenSince = DateTime.MinValue;
         }
 
+        // Off-road head distraction detection
         if (Math.Abs(metrics.YawDegrees) > _thresholds.YawThresholdDegrees)
         {
-            _ = TriggerIncidentAsync(new IncidentReport(
-                _deviceId, _authSession.UserId!, IncidentType.OffRoadDistraction, DateTimeOffset.UtcNow,
-                null, metrics.Ear, metrics.Mar, perclos, new HeadPose(metrics.PitchDegrees, metrics.YawDegrees, metrics.RollDegrees)));
+            if ((now - _lastDistractionAt).TotalSeconds >= 3.0)
+            {
+                _lastDistractionAt = now;
+                _ = TriggerIncidentAsync(new IncidentReport(
+                    _deviceId, _authSession.UserId!, IncidentType.OffRoadDistraction, DateTimeOffset.UtcNow,
+                    null, metrics.Ear, metrics.Mar, perclos, new HeadPose(metrics.PitchDegrees, metrics.YawDegrees, metrics.RollDegrees)));
+            }
         }
     }
 }

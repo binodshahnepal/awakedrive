@@ -30,7 +30,7 @@ public record DeviceSummary(
 
 public record DeviceConfig(
     double EarThreshold = 0.20,
-    double EarDurationSeconds = 1.5,
+    double EarDurationSeconds = 0.6,
     double PerclosThreshold = 0.15,
     double MarThreshold = 0.60,
     double MarDurationSeconds = 2.5,

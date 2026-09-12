@@ -8,6 +8,7 @@
         <conv:InverseBooleanConverter x:Key="InverseBool" />
         <conv:InverseBooleanToVisibilityConverter x:Key="InverseBoolToVisibility" />
         <conv:NullOrEmptyToVisibilityConverter x:Key="NullOrEmptyToVisibility" />
+        <conv:NullToVisibilityConverter x:Key="NullToVisibility" />
         <conv:AlertBorderBrushConverter x:Key="AlertBorderBrush" />
     </Application.Resources>
 </Application>

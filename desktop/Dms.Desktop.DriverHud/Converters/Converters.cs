@@ -35,6 +35,16 @@ public class NullOrEmptyToVisibilityConverter : IValueConverter
         => throw new NotSupportedException();
 }
 
+/// <summary>Null -> Visible; Not Null -> Collapsed. Used for camera status overlay when frame is null.</summary>
+public class NullToVisibilityConverter : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => value is null ? Visibility.Visible : Visibility.Collapsed;
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => throw new NotSupportedException();
+}
+
 /// <summary>True -> Visible; False -> Collapsed. Same as the built-in
 /// BooleanToVisibilityConverter, spelled out so it can be used alongside the
 /// "Inverse" variants without confusion over which is which in XAML.</summary>

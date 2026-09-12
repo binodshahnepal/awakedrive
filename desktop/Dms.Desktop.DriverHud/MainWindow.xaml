@@ -63,7 +63,7 @@
                     <Image Source="{Binding PreviewFrame}" Stretch="Uniform" />
                     <TextBlock Text="{Binding CameraStatus}" Foreground="White" Background="#AA000000"
                                Padding="8" VerticalAlignment="Bottom" TextWrapping="Wrap"
-                               Visibility="{Binding PreviewFrame, Converter={StaticResource InverseBoolToVisibility}}" />
+                               Visibility="{Binding PreviewFrame, Converter={StaticResource NullToVisibility}}" />
                 </Grid>
             </Border>
 
@@ -72,7 +72,7 @@
                 <Border Background="#1B1E26" CornerRadius="4" Padding="12" Margin="0,0,0,8">
                     <StackPanel>
                         <TextBlock Text="Perception Engine" Foreground="Gray" FontSize="12" Margin="0,0,0,4" />
-                        <TextBlock Text="{Binding EngineStatusMessage}" Foreground="Orange" TextWrapping="Wrap" FontSize="12" />
+                        <TextBlock Text="{Binding EngineStatusMessage}" Foreground="#4CAF50" TextWrapping="Wrap" FontSize="12" FontWeight="SemiBold" />
                     </StackPanel>
                 </Border>
 

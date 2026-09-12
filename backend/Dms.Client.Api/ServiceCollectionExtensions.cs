@@ -22,6 +22,7 @@ public static class ServiceCollectionExtensions
         {
             var options = provider.GetRequiredService<Microsoft.Extensions.Options.IOptions<DmsApiOptions>>().Value;
             client.BaseAddress = new Uri(options.BaseUrl);
+            client.Timeout = TimeSpan.FromSeconds(5);
         });
 
         services.Add(new ServiceDescriptor(typeof(DrowsinessHubClient), typeof(DrowsinessHubClient), authSessionLifetime));

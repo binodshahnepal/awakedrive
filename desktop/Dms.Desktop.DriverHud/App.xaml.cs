@@ -40,6 +40,7 @@ public partial class App : Application
                 services.AddSingleton<CameraService>();
                 services.AddSingleton<DeviceIdentityService>();
                 services.AddSingleton<IncidentQueueService>();
+                services.AddSingleton<AudioAlertService>();
                 services.AddSingleton<IFaceLandmarkEngine>(provider =>
                     new OnnxFaceLandmarkEngine(provider.GetRequiredService<ILogger<OnnxFaceLandmarkEngine>>(), resolvedModelPath));
 

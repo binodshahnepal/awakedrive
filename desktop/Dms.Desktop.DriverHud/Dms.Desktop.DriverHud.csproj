@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
     <ProjectReference Include="..\..\backend\Dms.Shared.Contracts\Dms.Shared.Contracts.csproj" />
@@ -26,6 +26,7 @@
 
   <ItemGroup>
     <None Include="appsettings.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="cascades\**" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>
