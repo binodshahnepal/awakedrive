@@ -22,6 +22,31 @@ public class DevicesController : ControllerBase
     }
 
     /// <summary>
+    /// All registered devices, for the fleet-manager dashboards.
+    /// </summary>
+    [HttpGet]
+    [Authorize(Roles = "FleetManager,Admin")]
+    [ProducesResponseType(typeof(List<DeviceSummary>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<List<DeviceSummary>>> GetDevices()
+    {
+        var devices = await _db.Devices
+            .Include(d => d.Driver)
+            .OrderByDescending(d => d.RegisteredAtUtc)
+            .Select(d => new DeviceSummary(
+                d.Id.ToString(),
+                d.DeviceUuid,
+                d.DeviceType,
+                d.DriverId.ToString(),
+                d.Driver!.DisplayName,
+                d.FirmwareVersion,
+                d.ModelName,
+                d.RegisteredAtUtc))
+            .ToListAsync();
+
+        return Ok(devices);
+    }
+
+    /// <summary>
     /// Registers dashcams/mobile/desktop hardware UUIDs and syncs threshold
     /// configuration (EAR/PERCLOS/MAR/head-pose) back to the device. Idempotent
     /// on DeviceUuid — calling this again (e.g. after a factory reset) updates

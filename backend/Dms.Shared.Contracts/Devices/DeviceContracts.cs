@@ -17,6 +17,17 @@ public record DeviceRegistrationRequest(
 
 public record DeviceRegistrationResponse(string DeviceId, DateTimeOffset RegisteredAtUtc, DeviceConfig Config);
 
+/// <summary>Read model for the fleet-manager dashboards (Web Portal, Desktop Console).</summary>
+public record DeviceSummary(
+    string DeviceId,
+    string DeviceUuid,
+    DeviceType DeviceType,
+    string DriverId,
+    string DriverName,
+    string? FirmwareVersion,
+    string? ModelName,
+    DateTimeOffset RegisteredAtUtc);
+
 public record DeviceConfig(
     double EarThreshold = 0.20,
     double EarDurationSeconds = 1.5,

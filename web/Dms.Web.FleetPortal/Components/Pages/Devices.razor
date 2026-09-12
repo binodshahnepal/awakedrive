@@ -1,0 +1,81 @@
+@page "/devices"
+@inject DmsApiClient Api
+@inject AuthSession AuthSession
+@inject NavigationManager Nav
+
+<PageTitle>Devices — AwakeDrive</PageTitle>
+
+@if (!AuthSession.IsAuthenticated)
+{
+    <p>Redirecting to sign-in…</p>
+}
+else
+{
+    <h1>Registered Devices</h1>
+
+    @if (_error is not null)
+    {
+        <div class="alert alert-danger">@_error</div>
+    }
+
+    @if (_devices is null)
+    {
+        <p><em>Loading…</em></p>
+    }
+    else if (_devices.Count == 0)
+    {
+        <p><em>No devices registered yet.</em></p>
+    }
+    else
+    {
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Device UUID</th>
+                    <th>Type</th>
+                    <th>Driver</th>
+                    <th>Model</th>
+                    <th>Firmware</th>
+                    <th>Registered</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var device in _devices)
+                {
+                    <tr>
+                        <td><code>@device.DeviceUuid</code></td>
+                        <td>@device.DeviceType</td>
+                        <td>@device.DriverName</td>
+                        <td>@(device.ModelName ?? "—")</td>
+                        <td>@(device.FirmwareVersion ?? "—")</td>
+                        <td>@device.RegisteredAtUtc.ToString("u")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+}
+
+@code {
+    private List<DeviceSummary>? _devices;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!AuthSession.IsAuthenticated)
+        {
+            Nav.NavigateTo("/login");
+            return;
+        }
+
+        try
+        {
+            _devices = await Api.GetDevicesAsync();
+        }
+        catch (DmsApiException ex)
+        {
+            _error = $"Could not load devices: {ex.Message}";
+            _devices = [];
+        }
+    }
+}

@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/backend/">
     <Project Path="backend/Dms.Api/Dms.Api.csproj" />
+    <Project Path="backend/Dms.Client.Api/Dms.Client.Api.csproj" />
     <Project Path="backend/Dms.Shared.Contracts/Dms.Shared.Contracts.csproj" />
   </Folder>
   <Folder Name="/desktop/">

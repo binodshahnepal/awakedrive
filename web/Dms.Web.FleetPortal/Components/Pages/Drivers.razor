@@ -1,0 +1,139 @@
+@page "/drivers"
+@inject DmsApiClient Api
+@inject AuthSession AuthSession
+@inject NavigationManager Nav
+
+<PageTitle>Drivers — AwakeDrive</PageTitle>
+
+@if (!AuthSession.IsAuthenticated)
+{
+    <p>Redirecting to sign-in…</p>
+}
+else
+{
+    <h1>Drivers &amp; Staff</h1>
+
+    @if (_error is not null)
+    {
+        <div class="alert alert-danger">@_error</div>
+    }
+
+    @if (_users is null)
+    {
+        <p><em>Loading…</em></p>
+    }
+    else
+    {
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Role</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var user in _users)
+                {
+                    <tr>
+                        <td>@user.DisplayName</td>
+                        <td>@user.Email</td>
+                        <td><span class="badge bg-secondary">@user.Role</span></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+
+    @if (AuthSession.Role == UserRole.Admin)
+    {
+        <h2>Add user</h2>
+        <EditForm Model="_newUser" OnValidSubmit="AddUserAsync">
+            <div class="row g-2">
+                <div class="col-auto">
+                    <InputText class="form-control" placeholder="Display name" @bind-Value="_newUser.DisplayName" />
+                </div>
+                <div class="col-auto">
+                    <InputText class="form-control" placeholder="Email" @bind-Value="_newUser.Email" />
+                </div>
+                <div class="col-auto">
+                    <InputText type="password" class="form-control" placeholder="Temporary password" @bind-Value="_newUser.Password" />
+                </div>
+                <div class="col-auto">
+                    <InputSelect class="form-select" @bind-Value="_newUser.Role">
+                        <option value="@UserRole.Driver">Driver</option>
+                        <option value="@UserRole.FleetManager">Fleet Manager</option>
+                        <option value="@UserRole.Admin">Admin</option>
+                    </InputSelect>
+                </div>
+                <div class="col-auto">
+                    <button type="submit" class="btn btn-primary" disabled="@_isAdding">Add</button>
+                </div>
+            </div>
+        </EditForm>
+        @if (_addError is not null)
+        {
+            <div class="alert alert-danger mt-2">@_addError</div>
+        }
+    }
+}
+
+@code {
+    private List<UserSummary>? _users;
+    private string? _error;
+    private string? _addError;
+    private bool _isAdding;
+    private NewUserModel _newUser = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!AuthSession.IsAuthenticated)
+        {
+            Nav.NavigateTo("/login");
+            return;
+        }
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        try
+        {
+            _users = await Api.GetUsersAsync();
+        }
+        catch (DmsApiException ex)
+        {
+            _error = $"Could not load users: {ex.Message}";
+            _users = [];
+        }
+    }
+
+    private async Task AddUserAsync()
+    {
+        _addError = null;
+        _isAdding = true;
+        try
+        {
+            await Api.RegisterUserAsync(new RegisterUserRequest(
+                _newUser.Email, _newUser.Password, _newUser.DisplayName, _newUser.Role, FleetId: null));
+            _newUser = new NewUserModel();
+            await LoadAsync();
+        }
+        catch (DmsApiException ex)
+        {
+            _addError = ex.Message;
+        }
+        finally
+        {
+            _isAdding = false;
+        }
+    }
+
+    private class NewUserModel
+    {
+        public string DisplayName { get; set; } = "";
+        public string Email { get; set; } = "";
+        public string Password { get; set; } = "";
+        public UserRole Role { get; set; } = UserRole.Driver;
+    }
+}

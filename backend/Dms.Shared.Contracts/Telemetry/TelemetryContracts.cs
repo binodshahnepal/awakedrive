@@ -24,3 +24,17 @@ public record IncidentReport(
 public record HeadPose(double Pitch, double Yaw, double Roll);
 
 public record IncidentIngestResponse(string IncidentId, bool AlertBroadcast);
+
+/// <summary>Read model for the fleet-manager dashboards (Web Portal, Desktop Console).</summary>
+public record IncidentSummary(
+    string IncidentId,
+    string DeviceId,
+    string DriverId,
+    string DriverName,
+    IncidentType Type,
+    DateTimeOffset TimestampUtc,
+    GeoPoint? Location,
+    double? Ear,
+    double? Mar,
+    double? Perclos,
+    HeadPose? HeadPose);

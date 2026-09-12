@@ -2,10 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\backend\Dms.Shared.Contracts\Dms.Shared.Contracts.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="8.0.*" />
+    <ProjectReference Include="..\..\backend\Dms.Client.Api\Dms.Client.Api.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

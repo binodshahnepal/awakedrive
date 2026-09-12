@@ -27,6 +27,39 @@ public class TelemetryController : ControllerBase
     }
 
     /// <summary>
+    /// Recent incidents for the fleet-manager dashboards, newest first.
+    /// </summary>
+    [HttpGet("incidents")]
+    [Authorize(Roles = "FleetManager,Admin")]
+    [ProducesResponseType(typeof(List<IncidentSummary>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<List<IncidentSummary>>> GetRecentIncidents([FromQuery] int take = 50)
+    {
+        take = Math.Clamp(take, 1, 500);
+
+        var incidents = await _db.Incidents
+            .Include(i => i.Driver)
+            .OrderByDescending(i => i.TimestampUtc)
+            .Take(take)
+            .Select(i => new IncidentSummary(
+                i.Id.ToString(),
+                i.DeviceId.ToString(),
+                i.DriverId.ToString(),
+                i.Driver!.DisplayName,
+                i.Type,
+                i.TimestampUtc,
+                i.Latitude != null && i.Longitude != null ? new GeoPoint(i.Latitude.Value, i.Longitude.Value) : null,
+                i.Ear,
+                i.Mar,
+                i.Perclos,
+                i.Pitch != null && i.Yaw != null && i.Roll != null
+                    ? new HeadPose(i.Pitch.Value, i.Yaw.Value, i.Roll.Value)
+                    : null))
+            .ToListAsync();
+
+        return Ok(incidents);
+    }
+
+    /// <summary>
     /// Ingests micro-sleep / distraction incident logs (Timestamp, GPS, EAR, MAR,
     /// HeadPose) from an edge client (mobile app or desktop Driver HUD), persists
     /// it, and broadcasts a DrowsinessAlert to Fleet Manager clients via SignalR.

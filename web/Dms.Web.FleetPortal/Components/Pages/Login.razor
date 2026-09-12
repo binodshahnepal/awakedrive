@@ -1,0 +1,74 @@
+@page "/login"
+@inject DmsApiClient Api
+@inject AuthSession AuthSession
+@inject NavigationManager Nav
+
+<PageTitle>Sign in — AwakeDrive</PageTitle>
+
+<div class="login-card">
+    <h1>AwakeDrive Fleet Portal</h1>
+    <p class="text-muted">Sign in as a Fleet Manager or Admin.</p>
+
+    <EditForm Model="_model" OnValidSubmit="SubmitAsync">
+        <div class="mb-3">
+            <label class="form-label">Email</label>
+            <InputText class="form-control" @bind-Value="_model.Email" />
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Password</label>
+            <InputText type="password" class="form-control" @bind-Value="_model.Password" />
+        </div>
+
+        @if (_error is not null)
+        {
+            <div class="alert alert-danger">@_error</div>
+        }
+
+        <button type="submit" class="btn btn-primary" disabled="@_isSubmitting">
+            @(_isSubmitting ? "Signing in..." : "Sign in")
+        </button>
+    </EditForm>
+</div>
+
+<style>
+    .login-card { max-width: 360px; margin: 4rem auto; }
+</style>
+
+@code {
+    private readonly LoginModel _model = new();
+    private string? _error;
+    private bool _isSubmitting;
+
+    protected override void OnInitialized()
+    {
+        if (AuthSession.IsAuthenticated)
+        {
+            Nav.NavigateTo("/");
+        }
+    }
+
+    private async Task SubmitAsync()
+    {
+        _error = null;
+        _isSubmitting = true;
+        try
+        {
+            await Api.LoginAsync(_model.Email, _model.Password);
+            Nav.NavigateTo("/");
+        }
+        catch (DmsApiException ex)
+        {
+            _error = ex.Message.Contains("401") ? "Invalid email or password." : ex.Message;
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+
+    private class LoginModel
+    {
+        public string Email { get; set; } = "";
+        public string Password { get; set; } = "";
+    }
+}

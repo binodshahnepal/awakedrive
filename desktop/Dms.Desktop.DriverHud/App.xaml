@@ -1,9 +1,13 @@
-﻿<Application x:Class="Dms.Desktop.DriverHud.App"
+<Application x:Class="Dms.Desktop.DriverHud.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="clr-namespace:Dms.Desktop.DriverHud"
-             StartupUri="MainWindow.xaml">
+             xmlns:conv="clr-namespace:Dms.Desktop.DriverHud.Converters">
     <Application.Resources>
-         
+        <conv:BooleanToVisibilityConverter x:Key="BoolToVisibility" />
+        <conv:InverseBooleanConverter x:Key="InverseBool" />
+        <conv:InverseBooleanToVisibilityConverter x:Key="InverseBoolToVisibility" />
+        <conv:NullOrEmptyToVisibilityConverter x:Key="NullOrEmptyToVisibility" />
+        <conv:AlertBorderBrushConverter x:Key="AlertBorderBrush" />
     </Application.Resources>
 </Application>
