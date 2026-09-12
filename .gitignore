@@ -51,6 +51,7 @@ GoogleService-Info.plist
 .DS_Store
 Thumbs.db
 *.log
+*.log.err
 
 # --- Local tooling state (not meant for version control) ---
 .claude/
